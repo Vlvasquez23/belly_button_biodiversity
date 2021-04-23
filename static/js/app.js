@@ -1,4 +1,4 @@
-function buildMetadata(sample) {
+function buildMetadata(sample.data) {
 
     // @TODO: Complete the following function that builds the metadata panel
   
