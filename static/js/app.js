@@ -33,7 +33,8 @@ function getData() {
         // Create a function that returns metadata based on id number
         function filterData(person) {
             return person.id == selectedOption;
-        };
+        
+        }; 
 
         // Filter metadata by subject of interest
         var filteredData = data.metadata.filter(filterData);
@@ -105,4 +106,8 @@ function getData() {
 
         Plotly.newPlot('bubble', bubbleChart, layout2)
     });
+
+    
 };
+
+    getData();
