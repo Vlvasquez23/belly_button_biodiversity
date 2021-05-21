@@ -1,113 +1,105 @@
-function optionChanged() {
-  
-    // Use D3 to select the dropdown menu
-    var dropdownMenu = d3.select("selDataset").node();
-    
-    // Assign the dropdown menu option to a variable
-    var selectedOption = dropdownMenu.value;
+function buildMetadata(sample) {
+  d3.json("samples.json").then((data) => {
+    console.log('data', data)
 
-    console.log(selectedOption);
+    // Filter the data for the object using id
+    var metadata = data.metadata;
+    var resultArray = metadata.filter(sampleObj => sampleObj.id == sample);
+    var result = resultArray[0];
 
-    optionChanged();
-};
+    // Use d3 to select the panel using id
+    var PANEL = d3.select("#sample-metadata");
 
+    // Use `.html("") to clear any existing metadata
+    PANEL.html("");
 
-function getData() {
+    // Append option tags for each ID in the names array
+    Object.entries(result).forEach(([key, value]) => {
+      PANEL.append("h6").text(`${key.toUpperCase()}: ${value}`);
+    });
+  });
+}
 
-    // Read the JSON file
-    d3.json('samples.json').then(function(data) {
+function buildCharts(sample) {
+  d3.json("samples.json").then((data) => {
+    var samples = data.samples;
+    var resultArray = samples.filter(sampleObj => sampleObj.id == sample);
+    var result = resultArray[0];
 
-        // Create variable for the dropdown (select tag)
-        var select = d3.select('select');
+    var otu_ids = result.otu_ids;
+    var otu_labels = result.otu_labels;
+    var sample_values = result.sample_values;
 
-        // Append option tags for each ID in the names array
-        Object.entries(data.names).forEach(function([key, value]) {
-            var option = select.append('option')
-            option.text(value)});
-
-        // Create variable for subject of interest
-        var selectedOption = document.getElementById('selDataset');
-        var selectedOption = selectedOption.options[selectedOption.selectedIndex].value;
-        console.log(selectedOption)
-
-        // Create a function that returns metadata based on id number
-        function filterData(person) {
-            return person.id == selectedOption;
-        
-        }; 
-
-        // Filter metadata by subject of interest
-        var filteredData = data.metadata.filter(filterData);
-        console.log(filteredData[0]);
-
-        // Create a variable for the Demographic Info panel
-        var panel = d3.select('panel-body');
-
-        // Initialize panel
-        panel.selectAll('*').remove();
-
-        // Append information on subject based on dropdown value
-        Object.entries(filteredData[0]).forEach(function([key, value]) {
-            var row = panel.append('tr')
-            row.text(`${key}: ${value}`);
-        })
-        
-        // Filter sample data by subject of interest
-        var filteredSample = data.samples.filter(filterData);
-        var filteredSample = filteredSample[0];
-        console.log(filteredSample);
-
-        // Pull all data from samples for bubble chart plotting
-        sampleIDs = filteredSample.otu_ids;
-        sampleValues = filteredSample.sample_values;
-        sampleLabels = filteredSample.otu_labels;
-
-        // Slice the first 10 objects for bar chart plotting
-        slicedIDs = filteredSample.otu_ids.slice(0, 10);
-        slicedValues = filteredSample.sample_values.slice(0, 10);
-        slicedLabels = filteredSample.otu_labels.slice(0, 10);
-        console.log(slicedIDs, slicedValues, slicedLabels)
-
-        // Trace1 for the horizontal bar chart
-        var trace1 = {
-            x: slicedValues,
-            y: slicedIDs.toString(),
-            text: slicedLabels,
-            type: 'bar',
-            orientation: 'h'
-        };
-
-        var hbarChart = [trace1];
-
-        var layout1 = {
-            title: 'Top 10 Samples'
-        };
-
-        Plotly.newPlot('bar', hbarChart, layout1)
-
-        // Trace2 for the bubble chart
-        var trace2 = {
-            x: sampleIDs,
-            y: sampleValues,
-            text: sampleLabels,
-            mode: 'markers',
-            marker: {
-                color: sampleIDs,
-                size: sampleValues
-            }
-        };
-
-        var bubbleChart = [trace2]
-
-        var layout2 = {
-            title: 'All Sample Sizes',
-            showlegend: false
+    // Build a Bubble Chart
+    var bubbleLayout = {
+      title: "Bacteria Cultures Per Sample",
+      margin: { t: 0 },
+      hovermode: "closest",
+      xaxis: { title: "OTU ID" },
+      margin: { t: 30}
+    };
+    var bubbleData = [
+      {
+        x: otu_ids,
+        y: sample_values,
+        text: otu_labels,
+        mode: "markers",
+        marker: {
+          size: sample_values,
+          color: otu_ids,
+          colorscale: "Earth"
         }
+      }
+    ];
 
-        Plotly.newPlot('bubble', bubbleChart, layout2)
+    Plotly.newPlot("bubble", bubbleData, bubbleLayout);
+
+    var yticks = otu_ids.slice(0, 10).map(otuID => `OTU ${otuID}`).reverse();
+    var barData = [
+      {
+        y: yticks,
+        x: sample_values.slice(0, 10).reverse(),
+        text: otu_labels.slice(0, 10).reverse(),
+        type: "bar",
+        orientation: "h",
+      }
+    ];
+
+    var barLayout = {
+      title: "Top 10 Bacteria Cultures Found",
+      margin: { t: 30, l: 150 }
+    };
+
+    Plotly.newPlot("bar", barData, barLayout);
+  });
+}
+
+function init() {
+  var selector = d3.select("#selDataset");
+
+  // Select top 10
+  d3.json("samples.json").then((data) => {
+    var sampleNames = data.names;
+
+    sampleNames.forEach((sample) => {
+      selector
+        .append("option")
+        .text(sample)
+        .property("value", sample);
     });
 
-    
-};
+    // Use the first sample 940 /(TOP 10) to build the initial plots
+    var firstSample = sampleNames[0];
+    buildCharts(firstSample);
+    buildMetadata(firstSample);
+  });
+}
 
-    getData();
+  // Retrieve new data each time different id is selected
+function optionChanged(newSample) {
+  buildCharts(newSample);
+  buildMetadata(newSample);
+}
+
+// Initialize the dashboard
+init();
